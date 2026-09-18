@@ -1,9 +1,9 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { loadAIData, loadTemplate, clearAll } from '@/lib/store'
+import { loadAIData, loadTemplate } from '@/lib/store'
 import { AIEnhancedCV, CVTemplate } from '@/types'
 import CVPreview from '@/components/cv/CVPreview'
 
@@ -17,6 +17,7 @@ function DownloadContent() {
   const [verified, setVerified] = useState(false)
   const [checking, setChecking] = useState(true)
   const [downloading, setDownloading] = useState(false)
+  const [downloaded, setDownloaded] = useState(false)
   const [error, setError] = useState('')
   const [aiData, setAiData] = useState<AIEnhancedCV | null>(null)
   const [template, setTemplate] = useState<CVTemplate>('classic')
@@ -61,13 +62,25 @@ function DownloadContent() {
       if (!res.ok) throw new Error('PDF generation failed')
 
       const blob = await res.blob()
+      if (!blob.size || !blob.type.includes('pdf')) {
+        throw new Error('Invalid PDF response')
+      }
+
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
       a.download = `ProCV-${aiData.name.replace(/\s+/g, '-')}.pdf`
+      a.target = '_blank'
+      a.rel = 'noopener'
+      a.style.display = 'none'
+      document.body.appendChild(a)
       a.click()
-      URL.revokeObjectURL(url)
-      clearAll()
+
+      window.setTimeout(() => {
+        a.remove()
+        URL.revokeObjectURL(url)
+      }, 10_000)
+      setDownloaded(true)
     } catch {
       setError('Could not generate PDF. Try again.')
     } finally {
@@ -122,7 +135,7 @@ function DownloadContent() {
             className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-emerald-900 px-6 text-sm font-black text-white shadow-lg shadow-emerald-900/20 transition hover:bg-emerald-950 disabled:opacity-60"
           >
             {downloading ? <Spinner /> : null}
-            {downloading ? 'Generating PDF...' : 'Download PDF'}
+            {downloading ? 'Generating PDF...' : downloaded ? 'Download again' : 'Download PDF'}
           </button>
         </header>
 
